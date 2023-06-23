@@ -27,6 +27,7 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
     let mut chars = code.char_indices().peekable();
     while let Some((pos, char)) = chars.next() {
         let next_token = match char {
+            // single character tokens
             '(' => Some(Ok(Token::LeftParen)),
             ')' => Some(Ok(Token::RightParen)),
             '{' => Some(Ok(Token::LeftBrace)),
@@ -37,27 +38,21 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
             '-' => Some(Ok(Token::Minus)),
             '+' => Some(Ok(Token::Plus)),
             '*' => Some(Ok(Token::Star)),
-            '!' => Some(Ok(if advance_if(&mut chars, &'=') {
-                Token::BangEqual
-            } else {
-                Token::Bang
-            })),
-            '=' => Some(Ok(if advance_if(&mut chars, &'=') {
-                Token::EqualEqual
-            } else {
-                Token::Equal
-            })),
-            '<' => Some(Ok(if advance_if(&mut chars, &'=') {
-                Token::LessEqual
-            } else {
-                Token::Less
-            })),
-            '>' => Some(Ok(if advance_if(&mut chars, &'=') {
-                Token::GreaterEqual
-            } else {
-                Token::Greater
-            })),
-            // We're inside a comment, advance the cursor until the end of the line
+            // two character tokens
+            '!' if advance_if(&mut chars, &'=') => Some(Ok(Token::BangEqual)),
+            '!' => Some(Ok(Token::Bang)),
+            '=' if advance_if(&mut chars, &'=') => Some(Ok(Token::EqualEqual)),
+            '=' => Some(Ok(Token::Equal)),
+            '<' if advance_if(&mut chars, &'=') => Some(Ok(Token::LessEqual)),
+            '<' => Some(Ok(Token::Less)),
+            '>' if advance_if(&mut chars, &'=') => Some(Ok(Token::Greater)),
+            '>' => Some(Ok(Token::Greater)),
+            ' ' | '\r' | '\t' => None, // whitespace is no-op
+            '\n' => {
+                line_number += 1;
+                None
+            }
+            // Comments or division
             '/' if matches!(chars.peek(), Some((_pos, '/'))) => {
                 advance_while(&mut chars, |&c| c != '\n');
                 None
@@ -80,11 +75,6 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
                     }
                 }
                 ret
-            }
-            ' ' | '\r' | '\t' => None, // no-op
-            '\n' => {
-                line_number += 1;
-                None
             }
             // Parse a number literal
             _ if char.is_ascii_digit() => {
