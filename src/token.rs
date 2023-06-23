@@ -1,3 +1,31 @@
+use phf::Map;
+use phf::phf_map;
+
+const KEYWORDS: Map<&str, Token> = phf_map! {
+    "and" => Token::And,
+    "class" => Token::Class,
+    "else" => Token::Else,
+    "false" => Token::False,
+    "for" => Token::For,
+    "fun" => Token::Fun,
+    "if" => Token::If,
+    "nil" => Token::Nil,
+    "or" => Token::Or,
+    "print" => Token::Print,
+    "return" => Token::Return,
+    "super" => Token::Super,
+    "this" => Token::This,
+    "true" => Token::True,
+    "var" => Token::Var,
+    "while" => Token::While,
+};
+
+pub fn get_keyword(identifier: &str) -> Option<Token> {
+    KEYWORDS.get(identifier).cloned()
+}
+
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     LeftParen,
     RightParen,
@@ -94,6 +122,7 @@ impl Token {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TokenPos {
     pub token: Token,
     pub offset: usize,
