@@ -173,7 +173,7 @@ mod test {
 
     #[test]
     fn test_lexer() {
-        let code = "var a = 1.0 + 3.;# // XD;".to_string();
+        let code = "var a = 1.0 + 123.;# // XD;".to_string();
 
         let tokens = lexer(code);
 
@@ -201,16 +201,16 @@ mod test {
                     offset: 12
                 }),
                 Ok(TokenPos {
-                    token: Token::Number(3.0),
+                    token: Token::Number(123.0),
                     offset: 14
                 }),
                 Ok(TokenPos {
                     token: Token::Dot,
-                    offset: 15
+                    offset: 17
                 }),
                 Ok(TokenPos {
                     token: Token::Semicolon,
-                    offset: 16
+                    offset: 18
                 }),
                 Err(LexerError {
                     line_number: 1,
@@ -218,7 +218,7 @@ mod test {
                 }),
                 Ok(TokenPos {
                     token: Token::EOF,
-                    offset: 25
+                    offset: 27
                 }),
             ],
         );
