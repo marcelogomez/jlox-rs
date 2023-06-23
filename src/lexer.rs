@@ -143,6 +143,11 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
         }
     }
 
+    tokens.push(Ok(TokenPos {
+        token: Token::EOF,
+        offset: code.len(),
+    }));
+
     tokens
 }
 
@@ -220,6 +225,10 @@ mod test {
                 Err(LexerError {
                     line_number: 1,
                     error: Error::UnknownToken('#'),
+                }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 25
                 }),
             ],
         );
