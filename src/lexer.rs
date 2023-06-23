@@ -26,7 +26,6 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
 
     let mut chars = code.char_indices().peekable();
     while let Some((pos, char)) = chars.next() {
-        println!("{pos} {char}");
         let next_token = match char {
             '(' => Some(Ok(Token::LeftParen)),
             ')' => Some(Ok(Token::RightParen)),
