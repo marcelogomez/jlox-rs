@@ -109,8 +109,7 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                         line_number: *line_number,
                         error: Error::MalformedString,
                     });
-                    while let Some((end_pos, c)) = chars.peek().copied() {
-                        let _ = chars.next();
+                    for (end_pos, c) in chars {
                         // We support multi line strings
                         if c == '\n' {
                             *line_number += 1;
