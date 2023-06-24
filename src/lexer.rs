@@ -123,8 +123,8 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                         })
                 }
                 // Identifiers or keywords
-                _ if char.is_alphanumeric() => {
-                    let iden_len = advance_while(chars, |c| c.is_alphanumeric());
+                _ if is_valid_for_identifier(&char) => {
+                    let iden_len = advance_while(chars, is_valid_for_identifier);
                     let iden_val = &code[pos..pos + iden_len + 1];
                     Ok(get_keyword(iden_val)
                         .unwrap_or_else(|| Token::Identifier(iden_val.to_string())))
@@ -145,6 +145,10 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
             offset: code.len(),
         })
     }
+}
+
+fn is_valid_for_identifier(c: &char) -> bool {
+    c.is_alphanumeric() || c == &'_'
 }
 
 fn advance_while<I: Iterator<Item = (usize, char)>, P: Fn(&char) -> bool>(
@@ -218,7 +222,7 @@ mod test {
 
     #[test]
     fn test_lexer() {
-        let code = "var a = 1.0 + 123.;# // XD;";
+        let code = "var _a_variable = 1.0 + 123.;# // XD;";
 
         let tokens: Vec<_> = lexer(code).collect();
 
@@ -230,32 +234,32 @@ mod test {
                     offset: 0
                 }),
                 Ok(TokenPos {
-                    token: Token::Identifier("a".to_string()),
+                    token: Token::Identifier("_a_variable".to_string()),
                     offset: 4
                 }),
                 Ok(TokenPos {
                     token: Token::Equal,
-                    offset: 6
+                    offset: 16
                 }),
                 Ok(TokenPos {
                     token: Token::Number(1.0),
-                    offset: 8
+                    offset: 18
                 }),
                 Ok(TokenPos {
                     token: Token::Plus,
-                    offset: 12
+                    offset: 22
                 }),
                 Ok(TokenPos {
                     token: Token::Number(123.0),
-                    offset: 14
+                    offset: 24
                 }),
                 Ok(TokenPos {
                     token: Token::Dot,
-                    offset: 17
+                    offset: 27
                 }),
                 Ok(TokenPos {
                     token: Token::Semicolon,
-                    offset: 18
+                    offset: 28
                 }),
                 Err(LexerError {
                     line_number: 1,
@@ -263,7 +267,7 @@ mod test {
                 }),
                 Ok(TokenPos {
                     token: Token::EOF,
-                    offset: 27
+                    offset: 37
                 }),
             ],
         );
