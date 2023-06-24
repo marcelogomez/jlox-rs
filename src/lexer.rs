@@ -120,27 +120,7 @@ impl Lexer<'_> {
                     })
                 }
                 '/' => Ok(Token::Slash),
-                '"' => {
-                    let mut ret = Err(LexerError {
-                        line_number: self.line_number,
-                        error: Error::MalformedString,
-                    });
-
-                    // clippy recommends using a for loop instead, but that would move
-                    // the iterator which is not allowed behind a mutable reference
-                    #[allow(clippy::while_let_on_iterator)]
-                    while let Some((end_pos, c)) = self.chars.next() {
-                        if c == '\n' {
-                            self.line_number += 1;
-                        }
-                        if c == '"' {
-                            ret = Ok(Token::String(self.code[pos + 1..end_pos].to_string()));
-                            break;
-                        }
-                    }
-
-                    ret
-                }
+                '"' => Ok(Token::String(self.read_string_literal(pos)?)),
                 // Parse a number literal
                 _ if char.is_ascii_digit() => {
                     // Add 1 to account for the already consumed char
@@ -155,12 +135,13 @@ impl Lexer<'_> {
                         _ => 0,
                     };
 
-                    f64::from_str(&self.code[pos..pos + decimal_part_len + fractional_part_len])
-                        .map(Token::Number)
-                        .map_err(|_error| LexerError {
-                            line_number: self.line_number,
-                            error: Error::MalformedNumber,
-                        })
+                    let lexeme = &self.code[pos..pos + decimal_part_len + fractional_part_len];
+                    let num_val = f64::from_str(lexeme).map_err(|_error| LexerError {
+                        line_number: self.line_number,
+                        error: Error::MalformedNumber,
+                    })?;
+
+                    Ok(Token::Number(num_val))
                 }
                 // Identifiers or keywords
                 _ if is_valid_for_identifier(&char) => {
@@ -186,6 +167,29 @@ impl Lexer<'_> {
             })
         }
     }
+
+    fn read_string_literal(&mut self, pos: usize) -> LexerResult<String> {
+        let mut ret = Err(LexerError {
+            line_number: self.line_number,
+            error: Error::MalformedString,
+        });
+
+        // clippy recommends using a for loop instead, but that would move
+        // the iterator which is not allowed behind a mutable reference
+        #[allow(clippy::while_let_on_iterator)]
+        while let Some((end_pos, c)) = self.chars.next() {
+            if c == '\n' {
+                self.line_number += 1;
+            }
+            if c == '"' {
+                ret = Ok(self.code[pos + 1..end_pos].to_string());
+                break;
+            }
+        }
+
+        ret
+    }
+
 
     fn advance_if<P: Fn(&char) -> bool>(&mut self, predicate: P) -> bool {
         let advanced = if self
