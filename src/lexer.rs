@@ -98,26 +98,8 @@ impl Lexer<'_> {
                 }
                 // Block comments
                 '/' if self.advance_if(|c| c == &'*') => {
-                    let mut open_comments_count = 1;
-                    while let Some((_, cur)) = self.chars.next() {
-                        match cur {
-                            '/' if self.advance_if(|c| c == &'*') => open_comments_count += 1,
-                            '*' if self.advance_if(|c| c == &'/') => {
-                                open_comments_count -= 1;
-                                // Comment block is over, move to next iteration
-                                if open_comments_count == 0 {
-                                    return self.next_token();
-                                }
-                            }
-                            '\n' => self.line_number += 1,
-                            _ => {}
-                        }
-                    }
-
-                    Err(LexerError {
-                        line_number: self.line_number,
-                        error: Error::UnclosedComment,
-                    })
+                    self.skip_comment_block()?;
+                    return self.next_token();
                 }
                 '/' => Ok(Token::Slash),
                 '"' => Ok(Token::String(self.read_string_literal(pos)?)),
@@ -149,6 +131,33 @@ impl Lexer<'_> {
         }
     }
 
+    fn skip_comment_block(&mut self) -> LexerResult<()> {
+        let mut open_comments_count = 1;
+        while let Some((_, cur)) = self.chars.next() {
+            match cur {
+                '/' if self.advance_if(|c| c == &'*') => open_comments_count += 1,
+                '*' if self.advance_if(|c| c == &'/') => {
+                    open_comments_count -= 1;
+                    // Comment block is over, move to next iteration
+                    if open_comments_count == 0 {
+                        break;
+                    }
+                }
+                '\n' => self.line_number += 1,
+                _ => {}
+            }
+        }
+
+        if open_comments_count > 0 {
+            Err(LexerError {
+                line_number: self.line_number,
+                error: Error::UnclosedComment,
+            })
+        } else {
+            Ok(())
+        }
+    }
+
     fn read_identifier(&mut self, pos: usize) -> &str {
         // Add 1 to account for the already read character at pos
         let iden_len = 1 + self.advance_while(is_valid_for_identifier);
@@ -158,15 +167,14 @@ impl Lexer<'_> {
     fn read_number_literal(&mut self, pos: usize) -> LexerResult<f64> {
         // Add 1 to account for the already consumed char
         let decimal_part_len = 1 + self.advance_while(char::is_ascii_digit);
-        let fractional_part_len = match (self.chars.peek().copied(), self.chars.peek())
-            {
-                (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
-                    // Consume period and add account for it in the fractional part's length
-                    let _ = self.chars.next();
-                    1 + self.advance_while(char::is_ascii_digit)
-                }
-                _ => 0,
-            };
+        let fractional_part_len = match (self.chars.peek().copied(), self.chars.peek()) {
+            (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
+                // Consume period and add account for it in the fractional part's length
+                let _ = self.chars.next();
+                1 + self.advance_while(char::is_ascii_digit)
+            }
+            _ => 0,
+        };
 
         let lexeme = &self.code[pos..pos + decimal_part_len + fractional_part_len];
         f64::from_str(lexeme).map_err(|_error| LexerError {
@@ -196,7 +204,6 @@ impl Lexer<'_> {
 
         ret
     }
-
 
     fn advance_if<P: Fn(&char) -> bool>(&mut self, predicate: P) -> bool {
         let advanced = if self
