@@ -125,6 +125,10 @@ impl Lexer<'_> {
                         line_number: self.line_number,
                         error: Error::MalformedString,
                     });
+
+                    // clippy recommends using a for loop instead, but that would move
+                    // the iterator which is not allowed behind a mutable reference
+                    #[allow(clippy::while_let_on_iterator)]
                     while let Some((end_pos, c)) = self.chars.next() {
                         if c == '\n' {
                             self.line_number += 1;
@@ -134,6 +138,7 @@ impl Lexer<'_> {
                             break;
                         }
                     }
+
                     ret
                 }
                 // Parse a number literal
