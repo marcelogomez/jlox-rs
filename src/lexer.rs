@@ -22,29 +22,27 @@ pub struct LexerError {
 
 type LexerResult<T> = Result<T, LexerError>;
 
-pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
+pub fn lexer(code: &str) -> impl Iterator<Item = LexerResult<TokenPos>> + '_ {
     let mut line_number = 1;
-    let mut tokens: Vec<LexerResult<TokenPos>> = vec![];
     let mut chars = code.char_indices().multipeek();
+    let mut finished = false;
 
-    tokens.push(next_token(&code, &mut chars, &mut line_number));
-    while tokens
-        .last()
-        .filter(|token_result| {
-            !matches!(
-                token_result,
-                Ok(TokenPos {
-                    token: Token::EOF,
-                    ..
-                })
-            )
-        })
-        .is_some()
-    {
-        tokens.push(next_token(&code, &mut chars, &mut line_number));
-    }
+    std::iter::from_fn(move || {
+        if finished {
+            return None;
+        } 
 
-    tokens
+        let next_token_result = next_token(code, &mut chars, &mut line_number);
+        finished = matches!(
+            next_token_result,
+            Ok(TokenPos {
+                token: Token::EOF,
+                ..
+            })
+        );
+
+        Some(next_token_result)
+    })
 }
 
 fn next_token<I: Iterator<Item = (usize, char)>>(
@@ -184,9 +182,9 @@ mod test {
 
     #[test]
     fn test_lexer() {
-        let code = "var a = 1.0 + 123.;# // XD;".to_string();
+        let code = "var a = 1.0 + 123.;# // XD;";
 
-        let tokens = lexer(code);
+        let tokens: Vec<_> = lexer(code).collect();
 
         assert_eq!(
             tokens,
