@@ -25,105 +25,128 @@ type LexerResult<T> = Result<T, LexerError>;
 pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
     let mut line_number = 1;
     let mut tokens: Vec<LexerResult<TokenPos>> = vec![];
-
     let mut chars = code.char_indices().multipeek();
-    while let Some((pos, char)) = chars.next() {
-        let next_token = match char {
-            // single character tokens
-            '(' => Some(Ok(Token::LeftParen)),
-            ')' => Some(Ok(Token::RightParen)),
-            '{' => Some(Ok(Token::LeftBrace)),
-            '}' => Some(Ok(Token::RightBrace)),
-            ';' => Some(Ok(Token::Semicolon)),
-            ',' => Some(Ok(Token::Comma)),
-            '.' => Some(Ok(Token::Dot)),
-            '-' => Some(Ok(Token::Minus)),
-            '+' => Some(Ok(Token::Plus)),
-            '*' => Some(Ok(Token::Star)),
-            // two character tokens
-            '!' if advance_if(&mut chars, &'=') => Some(Ok(Token::BangEqual)),
-            '!' => Some(Ok(Token::Bang)),
-            '=' if advance_if(&mut chars, &'=') => Some(Ok(Token::EqualEqual)),
-            '=' => Some(Ok(Token::Equal)),
-            '<' if advance_if(&mut chars, &'=') => Some(Ok(Token::LessEqual)),
-            '<' => Some(Ok(Token::Less)),
-            '>' if advance_if(&mut chars, &'=') => Some(Ok(Token::Greater)),
-            '>' => Some(Ok(Token::Greater)),
-            ' ' | '\r' | '\t' => None, // whitespace is no-op
-            '\n' => {
-                line_number += 1;
-                None
-            }
-            // Comments or division
-            '/' if matches!(chars.peek(), Some((_pos, '/'))) => {
-                advance_while(&mut chars, |&c| c != '\n');
-                None
-            }
-            '/' => Some(Ok(Token::Slash)),
-            '"' => {
-                let mut ret = Some(Err(LexerError {
-                    line_number,
-                    error: Error::MalformedString,
-                }));
-                while let Some((end_pos, c)) = chars.peek().copied() {
-                    let _ = chars.next();
-                    // We support multi line strings
-                    if c == '\n' {
-                        line_number += 1;
-                    }
-                    if c == '"' {
-                        ret = Some(Ok(Token::String(code[pos..end_pos].to_string())));
-                        break;
-                    }
-                }
-                ret
-            }
-            // Parse a number literal
-            _ if char.is_ascii_digit() => {
-                // Add 1 to account for the already consumed char
-                let decimal_part_len = 1 + advance_while(&mut chars, char::is_ascii_digit);
-                let fractional_part_len = match (chars.peek().copied(), chars.peek()) {
-                    (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
-                        // Consume period and add account for it in the fractional part's length
-                        let _ = chars.next();
-                        1 + advance_while(&mut chars, char::is_ascii_digit)
-                    }
-                    _ => 0,
-                };
 
-                Some(
+    tokens.push(next_token(&code, &mut chars, &mut line_number));
+    while tokens
+        .last()
+        .filter(|token_result| {
+            !matches!(
+                token_result,
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    ..
+                })
+            )
+        })
+        .is_some()
+    {
+        tokens.push(next_token(&code, &mut chars, &mut line_number));
+    }
+
+    tokens
+}
+
+fn next_token<I: Iterator<Item = (usize, char)>>(
+    code: &str,
+    chars: &mut MultiPeek<I>,
+    line_number: &mut usize,
+) -> LexerResult<TokenPos> {
+    if let Some((pos, char)) = chars.next() {
+        let token_result =
+            match char {
+                // single character tokens
+                '(' => Ok(Token::LeftParen),
+                ')' => Ok(Token::RightParen),
+                '{' => Ok(Token::LeftBrace),
+                '}' => Ok(Token::RightBrace),
+                ';' => Ok(Token::Semicolon),
+                ',' => Ok(Token::Comma),
+                '.' => Ok(Token::Dot),
+                '-' => Ok(Token::Minus),
+                '+' => Ok(Token::Plus),
+                '*' => Ok(Token::Star),
+                // two character tokens
+                '!' if advance_if(chars, &'=') => Ok(Token::BangEqual),
+                '!' => Ok(Token::Bang),
+                '=' if advance_if(chars, &'=') => Ok(Token::EqualEqual),
+                '=' => Ok(Token::Equal),
+                '<' if advance_if(chars, &'=') => Ok(Token::LessEqual),
+                '<' => Ok(Token::Less),
+                '>' if advance_if(chars, &'=') => Ok(Token::Greater),
+                '>' => Ok(Token::Greater),
+                ' ' | '\r' | '\t' => return next_token(code, chars, line_number),
+                '\n' => {
+                    *line_number += 1;
+                    return next_token(code, chars, line_number);
+                }
+                // Comments or division
+                '/' if matches!(chars.peek(), Some((_pos, '/'))) => {
+                    advance_while(chars, |&c| c != '\n');
+                    return next_token(code, chars, line_number);
+                }
+                '/' => Ok(Token::Slash),
+                '"' => {
+                    let mut ret = Err(LexerError {
+                        line_number: *line_number,
+                        error: Error::MalformedString,
+                    });
+                    while let Some((end_pos, c)) = chars.peek().copied() {
+                        let _ = chars.next();
+                        // We support multi line strings
+                        if c == '\n' {
+                            *line_number += 1;
+                        }
+                        if c == '"' {
+                            ret = Ok(Token::String(code[pos..end_pos].to_string()));
+                            break;
+                        }
+                    }
+                    ret
+                }
+                // Parse a number literal
+                _ if char.is_ascii_digit() => {
+                    // Add 1 to account for the already consumed char
+                    let decimal_part_len = 1 + advance_while(chars, char::is_ascii_digit);
+                    let fractional_part_len = match (chars.peek().copied(), chars.peek()) {
+                        (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
+                            // Consume period and add account for it in the fractional part's length
+                            let _ = chars.next();
+                            1 + advance_while(chars, char::is_ascii_digit)
+                        }
+                        _ => 0,
+                    };
+
                     f64::from_str(&code[pos..pos + decimal_part_len + fractional_part_len])
                         .map(Token::Number)
                         .map_err(|_error| LexerError {
-                            line_number,
+                            line_number: *line_number,
                             error: Error::MalformedNumber,
-                        }),
-                )
-            }
-            // Identifiers or keywords
-            _ if char.is_alphanumeric() => {
-                let iden_len = advance_while(&mut chars, |c| c.is_alphanumeric());
-                let iden_val = &code[pos..pos + iden_len + 1];
-                Some(Ok(get_keyword(iden_val)
-                    .unwrap_or_else(|| Token::Identifier(iden_val.to_string()))))
-            }
-            _ => Some(Err(LexerError {
-                line_number,
-                error: Error::UnknownToken(char),
-            })),
-        };
+                        })
+                }
+                // Identifiers or keywords
+                _ if char.is_alphanumeric() => {
+                    let iden_len = advance_while(chars, |c| c.is_alphanumeric());
+                    let iden_val = &code[pos..pos + iden_len + 1];
+                    Ok(get_keyword(iden_val)
+                        .unwrap_or_else(|| Token::Identifier(iden_val.to_string())))
+                }
+                _ => Err(LexerError {
+                    line_number: *line_number,
+                    error: Error::UnknownToken(char),
+                }),
+            };
 
-        if let Some(token_result) = next_token {
-            tokens.push(token_result.map(|token| TokenPos { token, offset: pos }));
-        }
+        token_result.map(|t| TokenPos {
+            token: t,
+            offset: pos,
+        })
+    } else {
+        Ok(TokenPos {
+            token: Token::EOF,
+            offset: code.len(),
+        })
     }
-
-    tokens.push(Ok(TokenPos {
-        token: Token::EOF,
-        offset: code.len(),
-    }));
-
-    tokens
 }
 
 fn advance_while<I: Iterator<Item = (usize, char)>, P: Fn(&char) -> bool>(
