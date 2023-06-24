@@ -30,7 +30,7 @@ pub fn lexer(code: &str) -> impl Iterator<Item = LexerResult<TokenPos>> + '_ {
     std::iter::from_fn(move || {
         if finished {
             return None;
-        } 
+        }
 
         let next_token_result = next_token(code, &mut chars, &mut line_number);
         finished = matches!(
@@ -83,20 +83,21 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                     advance_while(chars, |&c| c != '\n');
                     return next_token(code, chars, line_number);
                 }
-                // Multi line comment
+                // Block comments
                 '/' if advance_if(chars, &'*') => {
-                    while let (Some((_, cur)), Some((_, peek))) = (chars.next(), chars.peek()) {
-                        match (cur, peek) {
-                            // Comment is over, move to next iteration where we'll return EOF
-                            ('*', '/') => {
-                                // Consume the closing slash
-                                let _ = chars.next();
-                                return next_token(code, chars, line_number);
-                            },
-                            ('\n', _) => {
-                                *line_number += 1;
+                    let mut open_comments_count = 1;
+                    while let Some((_, cur)) = chars.next()  {
+                        match cur {
+                            '/' if advance_if(chars, &'*') => open_comments_count += 1,
+                            '*' if advance_if(chars, &'/') => {
+                                open_comments_count -= 1;
+                                // Comment block is over, move to next iteration
+                                if open_comments_count == 0 {
+                                    return next_token(code, chars, line_number);
+                                }
                             }
-                            _ => {},
+                            '\n' => *line_number += 1,
+                            _ => {}
                         }
                     }
 
@@ -239,6 +240,25 @@ mod test {
                     token: Token::EOF,
                     offset: 35
                 }),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_nested_block_comments() {
+        let code = "/*/*/**/*/*/\n;";
+        let tokens: Vec<_> = lexer(code).collect();
+        assert_eq!(
+            tokens,
+            vec![
+                Ok(TokenPos {
+                    token: Token::Semicolon,
+                    offset: 13
+                }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 14
+                })
             ],
         );
     }
