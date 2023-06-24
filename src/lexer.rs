@@ -12,6 +12,7 @@ pub enum Error {
     MalformedString,
     MalformedNumber,
     UnknownToken(char),
+    UnclosedComment,
 }
 
 #[derive(Debug, PartialEq)]
@@ -86,7 +87,7 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                 // Block comments
                 '/' if advance_if(chars, &'*') => {
                     let mut open_comments_count = 1;
-                    while let Some((_, cur)) = chars.next()  {
+                    while let Some((_, cur)) = chars.next() {
                         match cur {
                             '/' if advance_if(chars, &'*') => open_comments_count += 1,
                             '*' if advance_if(chars, &'/') => {
@@ -101,7 +102,10 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                         }
                     }
 
-                    return next_token(code, chars, line_number);
+                    Err(LexerError {
+                        line_number: *line_number,
+                        error: Error::UnclosedComment,
+                    })
                 }
                 '/' => Ok(Token::Slash),
                 '"' => {
@@ -238,6 +242,39 @@ mod test {
                 Ok(TokenPos {
                     token: Token::EOF,
                     offset: 35
+                }),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_unclosed_comments() {
+        let code = "class X {}\n/*/**/";
+        let tokens: Vec<_> = lexer(code).collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Ok(TokenPos {
+                    token: Token::Class,
+                    offset: 0
+                }),
+                Ok(TokenPos {
+                    token: Token::Identifier("X".to_string()),
+                    offset: 6
+                }),
+                Ok(TokenPos {
+                    token: Token::LeftBrace,
+                    offset: 8
+                }),
+                Ok(TokenPos {
+                    token: Token::RightBrace,
+                    offset: 9
+                }),
+                Err(LexerError { line_number: 1, error: Error::UnclosedComment }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 17
                 }),
             ],
         );
