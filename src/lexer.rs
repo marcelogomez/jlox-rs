@@ -122,33 +122,14 @@ impl Lexer<'_> {
                 '/' => Ok(Token::Slash),
                 '"' => Ok(Token::String(self.read_string_literal(pos)?)),
                 // Parse a number literal
-                _ if char.is_ascii_digit() => {
-                    // Add 1 to account for the already consumed char
-                    let decimal_part_len = 1 + self.advance_while(char::is_ascii_digit);
-                    let fractional_part_len = match (self.chars.peek().copied(), self.chars.peek())
-                    {
-                        (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
-                            // Consume period and add account for it in the fractional part's length
-                            let _ = self.chars.next();
-                            1 + self.advance_while(char::is_ascii_digit)
-                        }
-                        _ => 0,
-                    };
-
-                    let lexeme = &self.code[pos..pos + decimal_part_len + fractional_part_len];
-                    let num_val = f64::from_str(lexeme).map_err(|_error| LexerError {
-                        line_number: self.line_number,
-                        error: Error::MalformedNumber,
-                    })?;
-
-                    Ok(Token::Number(num_val))
-                }
+                _ if char.is_ascii_digit() => Ok(Token::Number(self.read_number_literal(pos)?)),
                 // Identifiers or keywords
                 _ if is_valid_for_identifier(&char) => {
-                    let iden_len = self.advance_while(is_valid_for_identifier);
-                    let iden_val = &self.code[pos..pos + iden_len + 1];
-                    Ok(get_keyword(iden_val)
-                        .unwrap_or_else(|| Token::Identifier(iden_val.to_string())))
+                    let iden = self.read_identifier(pos);
+                    Ok(match get_keyword(iden) {
+                        Some(keyword) => keyword,
+                        None => Token::Identifier(iden.to_string()),
+                    })
                 }
                 _ => Err(LexerError {
                     line_number: self.line_number,
@@ -166,6 +147,32 @@ impl Lexer<'_> {
                 offset: self.code.len(),
             })
         }
+    }
+
+    fn read_identifier(&mut self, pos: usize) -> &str {
+        // Add 1 to account for the already read character at pos
+        let iden_len = 1 + self.advance_while(is_valid_for_identifier);
+        &self.code[pos..pos + iden_len]
+    }
+
+    fn read_number_literal(&mut self, pos: usize) -> LexerResult<f64> {
+        // Add 1 to account for the already consumed char
+        let decimal_part_len = 1 + self.advance_while(char::is_ascii_digit);
+        let fractional_part_len = match (self.chars.peek().copied(), self.chars.peek())
+            {
+                (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
+                    // Consume period and add account for it in the fractional part's length
+                    let _ = self.chars.next();
+                    1 + self.advance_while(char::is_ascii_digit)
+                }
+                _ => 0,
+            };
+
+        let lexeme = &self.code[pos..pos + decimal_part_len + fractional_part_len];
+        f64::from_str(lexeme).map_err(|_error| LexerError {
+            line_number: self.line_number,
+            error: Error::MalformedNumber,
+        })
     }
 
     fn read_string_literal(&mut self, pos: usize) -> LexerResult<String> {
