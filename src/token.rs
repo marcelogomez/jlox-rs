@@ -1,5 +1,5 @@
-use phf::Map;
 use phf::phf_map;
+use phf::Map;
 
 const KEYWORDS: Map<&str, Token> = phf_map! {
     "and" => Token::And,
@@ -23,7 +23,6 @@ const KEYWORDS: Map<&str, Token> = phf_map! {
 pub fn get_keyword(identifier: &str) -> Option<Token> {
     KEYWORDS.get(identifier).cloned()
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {

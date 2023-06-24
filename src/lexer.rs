@@ -65,27 +65,27 @@ impl Iterator for Lexer<'_> {
 impl Lexer<'_> {
     fn next_token(&mut self) -> LexerResult<TokenPos> {
         if let Some((pos, char)) = self.chars.next() {
-            let token_result = match char {
+            let token = match char {
                 // single character tokens
-                '(' => Ok(Token::LeftParen),
-                ')' => Ok(Token::RightParen),
-                '{' => Ok(Token::LeftBrace),
-                '}' => Ok(Token::RightBrace),
-                ';' => Ok(Token::Semicolon),
-                ',' => Ok(Token::Comma),
-                '.' => Ok(Token::Dot),
-                '-' => Ok(Token::Minus),
-                '+' => Ok(Token::Plus),
-                '*' => Ok(Token::Star),
+                '(' => Token::LeftParen,
+                ')' => Token::RightParen,
+                '{' => Token::LeftBrace,
+                '}' => Token::RightBrace,
+                ';' => Token::Semicolon,
+                ',' => Token::Comma,
+                '.' => Token::Dot,
+                '-' => Token::Minus,
+                '+' => Token::Plus,
+                '*' => Token::Star,
                 // two character tokens
-                '!' if self.advance_if(|c| c == &'=') => Ok(Token::BangEqual),
-                '!' => Ok(Token::Bang),
-                '=' if self.advance_if(|c| c == &'=') => Ok(Token::EqualEqual),
-                '=' => Ok(Token::Equal),
-                '<' if self.advance_if(|c| c == &'=') => Ok(Token::LessEqual),
-                '<' => Ok(Token::Less),
-                '>' if self.advance_if(|c| c == &'=') => Ok(Token::Greater),
-                '>' => Ok(Token::Greater),
+                '!' if self.advance_if(|c| c == &'=') => Token::BangEqual,
+                '!' => Token::Bang,
+                '=' if self.advance_if(|c| c == &'=') => Token::EqualEqual,
+                '=' => Token::Equal,
+                '<' if self.advance_if(|c| c == &'=') => Token::LessEqual,
+                '<' => Token::Less,
+                '>' if self.advance_if(|c| c == &'=') => Token::Greater,
+                '>' => Token::Greater,
                 ' ' | '\r' | '\t' => return self.next_token(),
                 '\n' => {
                     self.line_number += 1;
@@ -101,28 +101,27 @@ impl Lexer<'_> {
                     self.skip_comment_block()?;
                     return self.next_token();
                 }
-                '/' => Ok(Token::Slash),
-                '"' => Ok(Token::String(self.read_string_literal(pos)?)),
+                '/' => Token::Slash,
+                '"' => Token::String(self.read_string_literal(pos)?),
                 // Parse a number literal
-                _ if char.is_ascii_digit() => Ok(Token::Number(self.read_number_literal(pos)?)),
+                _ if char.is_ascii_digit() => Token::Number(self.read_number_literal(pos)?),
                 // Identifiers or keywords
                 _ if is_valid_for_identifier(&char) => {
                     let iden = self.read_identifier(pos);
-                    Ok(match get_keyword(iden) {
+                    match get_keyword(iden) {
                         Some(keyword) => keyword,
                         None => Token::Identifier(iden.to_string()),
+                    }
+                }
+                _ => {
+                    return Err(LexerError {
+                        line_number: self.line_number,
+                        error: Error::UnknownToken(char),
                     })
                 }
-                _ => Err(LexerError {
-                    line_number: self.line_number,
-                    error: Error::UnknownToken(char),
-                }),
             };
 
-            token_result.map(|t| TokenPos {
-                token: t,
-                offset: pos,
-            })
+            Ok(TokenPos { token, offset: pos })
         } else {
             Ok(TokenPos {
                 token: Token::EOF,
