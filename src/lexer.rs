@@ -96,7 +96,7 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                             *line_number += 1;
                         }
                         if c == '"' {
-                            ret = Ok(Token::String(code[pos..end_pos].to_string()));
+                            ret = Ok(Token::String(code[pos + 1..end_pos].to_string()));
                             break;
                         }
                     }
@@ -179,6 +179,42 @@ fn advance_if<I: Iterator<Item = (usize, char)>>(chars: &mut MultiPeek<I>, test:
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_string_literals() {
+        let code = "var x = \"This is a \nmulti\nline\nstring\nliteral\";\n";
+        let tokens: Vec<_> = lexer(code).collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Ok(TokenPos {
+                    token: Token::Var,
+                    offset: 0
+                }),
+                Ok(TokenPos {
+                    token: Token::Identifier("x".to_string()),
+                    offset: 4
+                }),
+                Ok(TokenPos {
+                    token: Token::Equal,
+                    offset: 6
+                }),
+                Ok(TokenPos {
+                    token: Token::String("This is a \nmulti\nline\nstring\nliteral".to_string()),
+                    offset: 8
+                }),
+                Ok(TokenPos {
+                    token: Token::Semicolon,
+                    offset: 46
+                }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 48
+                }),
+            ],
+        );
+    }
 
     #[test]
     fn test_lexer() {
