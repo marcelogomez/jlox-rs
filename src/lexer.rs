@@ -79,8 +79,27 @@ fn next_token<I: Iterator<Item = (usize, char)>>(
                     return next_token(code, chars, line_number);
                 }
                 // Comments or division
-                '/' if matches!(chars.peek(), Some((_pos, '/'))) => {
+                '/' if advance_if(chars, &'/') => {
                     advance_while(chars, |&c| c != '\n');
+                    return next_token(code, chars, line_number);
+                }
+                // Multi line comment
+                '/' if advance_if(chars, &'*') => {
+                    while let (Some((_, cur)), Some((_, peek))) = (chars.next(), chars.peek()) {
+                        match (cur, peek) {
+                            // Comment is over, move to next iteration where we'll return EOF
+                            ('*', '/') => {
+                                // Consume the closing slash
+                                let _ = chars.next();
+                                return next_token(code, chars, line_number);
+                            },
+                            ('\n', _) => {
+                                *line_number += 1;
+                            }
+                            _ => {},
+                        }
+                    }
+
                     return next_token(code, chars, line_number);
                 }
                 '/' => Ok(Token::Slash),
@@ -183,6 +202,82 @@ fn advance_if<I: Iterator<Item = (usize, char)>>(chars: &mut MultiPeek<I>, test:
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_single_line_comments() {
+        let code = "// A\n// Comment\nvar x = 42;// XD;\n#";
+        let tokens: Vec<_> = lexer(code).collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Ok(TokenPos {
+                    token: Token::Var,
+                    offset: 16
+                }),
+                Ok(TokenPos {
+                    token: Token::Identifier("x".to_string()),
+                    offset: 20
+                }),
+                Ok(TokenPos {
+                    token: Token::Equal,
+                    offset: 22
+                }),
+                Ok(TokenPos {
+                    token: Token::Number(42.0),
+                    offset: 24
+                }),
+                Ok(TokenPos {
+                    token: Token::Semicolon,
+                    offset: 26
+                }),
+                Err(LexerError {
+                    line_number: 4,
+                    error: Error::UnknownToken('#'),
+                }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 35
+                }),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_multi_line_comments() {
+        let code = "/* A\n* multi\n* line\n* comment **//*This is a comment*/ var x = 1.0;";
+        let tokens: Vec<_> = lexer(code).collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Ok(TokenPos {
+                    token: Token::Var,
+                    offset: 55
+                }),
+                Ok(TokenPos {
+                    token: Token::Identifier("x".to_string()),
+                    offset: 59
+                }),
+                Ok(TokenPos {
+                    token: Token::Equal,
+                    offset: 61
+                }),
+                Ok(TokenPos {
+                    token: Token::Number(1.0),
+                    offset: 63
+                }),
+                Ok(TokenPos {
+                    token: Token::Semicolon,
+                    offset: 66
+                }),
+                Ok(TokenPos {
+                    token: Token::EOF,
+                    offset: 67
+                }),
+            ],
+        );
+    }
 
     #[test]
     fn test_string_literals() {
