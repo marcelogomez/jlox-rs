@@ -1,9 +1,11 @@
-use std::iter::Peekable;
 use std::str::FromStr;
 
 use crate::token::get_keyword;
 use crate::token::Token;
 use crate::token::TokenPos;
+
+use itertools::Itertools;
+use itertools::MultiPeek;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -24,7 +26,7 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
     let mut line_number = 1;
     let mut tokens: Vec<LexerResult<TokenPos>> = vec![];
 
-    let mut chars = code.char_indices().peekable();
+    let mut chars = code.char_indices().multipeek();
     while let Some((pos, char)) = chars.next() {
         let next_token = match char {
             // single character tokens
@@ -78,42 +80,25 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
             }
             // Parse a number literal
             _ if char.is_ascii_digit() => {
-                // consume decimal part
+                // Add 1 to account for the already consumed char
                 let decimal_part_len = 1 + advance_while(&mut chars, char::is_ascii_digit);
-
-                // check if there's a fractional part
-                let (has_period, fractional_part_len) = if let Some((_pos, '.')) = chars.peek() {
-                    // Consume the period
-                    let _ = chars.next();
-                    (true, advance_while(&mut chars, char::is_ascii_digit))
-                } else {
-                    (false, 0)
+                let fractional_part_len = match (chars.peek().copied(), chars.peek()) {
+                    (Some((_, '.')), Some((_, c))) if c.is_ascii_digit() => {
+                        // Consume period and add account for it in the fractional part's length
+                        let _ = chars.next();
+                        1 + advance_while(&mut chars, char::is_ascii_digit)
+                    }
+                    _ => 0,
                 };
 
-                let end_pos = chars.peek().map(|(pos, _char)| *pos).unwrap_or(code.len());
-
-                tokens.push(match f64::from_str(&code[pos..end_pos]) {
-                    Ok(val) => Ok(TokenPos {
-                        token: Token::Number(val),
-                        offset: pos,
-                    }),
-                    Err(_) => Err(LexerError {
-                        line_number,
-                        error: Error::MalformedNumber,
-                    }),
-                });
-
-                // If there was no fractional part but there was a period,
-                // then we must interpret that as a dot
-                if has_period && fractional_part_len == 0 {
-                    tokens.push(Ok(TokenPos {
-                        token: Token::Dot,
-                        offset: pos + decimal_part_len,
-                    }));
-                }
-
-                // TODO: Figure out a less hacky way of doing this
-                None
+                Some(
+                    f64::from_str(&code[pos..pos + decimal_part_len + fractional_part_len])
+                        .map(Token::Number)
+                        .map_err(|_error| LexerError {
+                            line_number,
+                            error: Error::MalformedNumber,
+                        }),
+                )
             }
             // Identifiers or keywords
             _ if char.is_alphanumeric() => {
@@ -142,7 +127,7 @@ pub fn lexer(code: String) -> Vec<LexerResult<TokenPos>> {
 }
 
 fn advance_while<I: Iterator<Item = (usize, char)>, P: Fn(&char) -> bool>(
-    chars: &mut Peekable<I>,
+    chars: &mut MultiPeek<I>,
     predicate: P,
 ) -> usize {
     let mut count = 0;
@@ -154,16 +139,19 @@ fn advance_while<I: Iterator<Item = (usize, char)>, P: Fn(&char) -> bool>(
         let _ = chars.next();
         count += 1;
     }
+    chars.reset_peek();
     count
 }
 
-fn advance_if<I: Iterator<Item = (usize, char)>>(chars: &mut Peekable<I>, test: &char) -> bool {
-    if chars.peek().filter(|(_pos, char)| char == test).is_some() {
+fn advance_if<I: Iterator<Item = (usize, char)>>(chars: &mut MultiPeek<I>, test: &char) -> bool {
+    let advanced = if chars.peek().filter(|(_pos, char)| char == test).is_some() {
         chars.next();
         true
     } else {
         false
-    }
+    };
+    chars.reset_peek();
+    advanced
 }
 
 #[cfg(test)]
