@@ -48,16 +48,18 @@ pub enum Token {
     Less,
     LessEqual,
 
-    // Literals
     Identifier(String),
-    String(String),
-    Number(f64),
-
-    // Keywords
+    Literal(Literal),
     Keyword(Keyword),
 
     // EOF
     EOF,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    String(String),
+    Number(f64),
 }
 
 #[derive(Debug, Clone, PartialEq)]

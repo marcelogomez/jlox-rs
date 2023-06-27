@@ -2,6 +2,7 @@ use std::str::CharIndices;
 use std::str::FromStr;
 
 use crate::token::get_keyword;
+use crate::token::Literal;
 use crate::token::Token;
 use crate::token::TokenPos;
 
@@ -102,9 +103,11 @@ impl Lexer<'_> {
                     return self.next_token();
                 }
                 '/' => Token::Slash,
-                '"' => Token::String(self.read_string_literal(pos)?),
+                '"' => Token::Literal(Literal::String(self.read_string_literal(pos)?)),
                 // Parse a number literal
-                _ if char.is_ascii_digit() => Token::Number(self.read_number_literal(pos)?),
+                _ if char.is_ascii_digit() => {
+                    Token::Literal(Literal::Number(self.read_number_literal(pos)?))
+                }
                 // Identifiers or keywords
                 _ if is_valid_for_identifier(&char) => {
                     let iden = self.read_identifier(pos);
@@ -241,6 +244,7 @@ fn is_valid_for_identifier(c: &char) -> bool {
 mod test {
     use super::*;
     use crate::token::Keyword;
+    use crate::token::Literal;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -264,7 +268,7 @@ mod test {
                     offset: 22
                 }),
                 Ok(TokenPos {
-                    token: Token::Number(42.0),
+                    token: Token::Literal(Literal::Number(42.0)),
                     offset: 24
                 }),
                 Ok(TokenPos {
@@ -359,7 +363,7 @@ mod test {
                     offset: 61
                 }),
                 Ok(TokenPos {
-                    token: Token::Number(1.0),
+                    token: Token::Literal(Literal::Number(1.0)),
                     offset: 63
                 }),
                 Ok(TokenPos {
@@ -395,7 +399,9 @@ mod test {
                     offset: 6
                 }),
                 Ok(TokenPos {
-                    token: Token::String("This is a \nmulti\nline\nstring\nliteral".to_string()),
+                    token: Token::Literal(Literal::String(
+                        "This is a \nmulti\nline\nstring\nliteral".to_string()
+                    )),
                     offset: 8
                 }),
                 Ok(TokenPos {
@@ -432,7 +438,7 @@ mod test {
                     offset: 16
                 }),
                 Ok(TokenPos {
-                    token: Token::Number(1.0),
+                    token: Token::Literal(Literal::Number(1.0)),
                     offset: 18
                 }),
                 Ok(TokenPos {
@@ -440,7 +446,7 @@ mod test {
                     offset: 22
                 }),
                 Ok(TokenPos {
-                    token: Token::Number(123.0),
+                    token: Token::Literal(Literal::Number(123.0)),
                     offset: 24
                 }),
                 Ok(TokenPos {
