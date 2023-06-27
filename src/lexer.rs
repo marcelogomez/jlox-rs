@@ -109,7 +109,7 @@ impl Lexer<'_> {
                 _ if is_valid_for_identifier(&char) => {
                     let iden = self.read_identifier(pos);
                     match get_keyword(iden) {
-                        Some(keyword) => keyword,
+                        Some(keyword) => Token::Keyword(keyword),
                         None => Token::Identifier(iden.to_string()),
                     }
                 }
@@ -240,6 +240,7 @@ fn is_valid_for_identifier(c: &char) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::token::Keyword;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -251,7 +252,7 @@ mod test {
             tokens,
             vec![
                 Ok(TokenPos {
-                    token: Token::Var,
+                    token: Token::Keyword(Keyword::Var),
                     offset: 16
                 }),
                 Ok(TokenPos {
@@ -291,7 +292,7 @@ mod test {
             tokens,
             vec![
                 Ok(TokenPos {
-                    token: Token::Class,
+                    token: Token::Keyword(Keyword::Class),
                     offset: 0
                 }),
                 Ok(TokenPos {
@@ -346,7 +347,7 @@ mod test {
             tokens,
             vec![
                 Ok(TokenPos {
-                    token: Token::Var,
+                    token: Token::Keyword(Keyword::Var),
                     offset: 55
                 }),
                 Ok(TokenPos {
@@ -382,7 +383,7 @@ mod test {
             tokens,
             vec![
                 Ok(TokenPos {
-                    token: Token::Var,
+                    token: Token::Keyword(Keyword::Var),
                     offset: 0
                 }),
                 Ok(TokenPos {
@@ -419,7 +420,7 @@ mod test {
             tokens,
             vec![
                 Ok(TokenPos {
-                    token: Token::Var,
+                    token: Token::Keyword(Keyword::Var),
                     offset: 0
                 }),
                 Ok(TokenPos {

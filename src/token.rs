@@ -1,26 +1,26 @@
 use phf::phf_map;
 use phf::Map;
 
-const KEYWORDS: Map<&str, Token> = phf_map! {
-    "and" => Token::And,
-    "class" => Token::Class,
-    "else" => Token::Else,
-    "false" => Token::False,
-    "for" => Token::For,
-    "fun" => Token::Fun,
-    "if" => Token::If,
-    "nil" => Token::Nil,
-    "or" => Token::Or,
-    "print" => Token::Print,
-    "return" => Token::Return,
-    "super" => Token::Super,
-    "this" => Token::This,
-    "true" => Token::True,
-    "var" => Token::Var,
-    "while" => Token::While,
+const KEYWORDS: Map<&str, Keyword> = phf_map! {
+    "and" => Keyword::And,
+    "class" => Keyword::Class,
+    "else" => Keyword::Else,
+    "false" => Keyword::False,
+    "for" => Keyword::For,
+    "fun" => Keyword::Fun,
+    "if" => Keyword::If,
+    "nil" => Keyword::Nil,
+    "or" => Keyword::Or,
+    "print" => Keyword::Print,
+    "return" => Keyword::Return,
+    "super" => Keyword::Super,
+    "this" => Keyword::This,
+    "true" => Keyword::True,
+    "var" => Keyword::Var,
+    "while" => Keyword::While,
 };
 
-pub fn get_keyword(identifier: &str) -> Option<Token> {
+pub fn get_keyword(identifier: &str) -> Option<Keyword> {
     KEYWORDS.get(identifier).cloned()
 }
 
@@ -54,6 +54,14 @@ pub enum Token {
     Number(f64),
 
     // Keywords
+    Keyword(Keyword),
+
+    // EOF
+    EOF,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Keyword {
     And,
     Class,
     Else,
@@ -70,9 +78,6 @@ pub enum Token {
     True,
     Var,
     While,
-
-    // EOF
-    EOF,
 }
 
 #[derive(Debug, PartialEq)]
