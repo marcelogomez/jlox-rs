@@ -32,7 +32,6 @@ fn run_code(code: String) -> Result<()> {
     Ok(())
 }
 
-
 fn run_repl() -> Result<()> {
     print!("> ");
     std::io::stdout().flush()?;
