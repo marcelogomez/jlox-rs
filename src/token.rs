@@ -31,14 +31,26 @@ pub enum Token {
     LeftBrace,
     RightBrace,
     Comma,
+    Semicolon,
+
+    Slash,
+
+    Operator(Operator),
+    Identifier(String),
+    Literal(Literal),
+    Keyword(Keyword),
+
+    // EOF
+    EOF,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Operator {
     Dot,
     Minus,
     Plus,
-    Semicolon,
     Slash,
     Star,
-
-    // 1 or 2 char tokens
     Bang,
     BangEqual,
     Equal,
@@ -47,13 +59,6 @@ pub enum Token {
     GreaterEqual,
     Less,
     LessEqual,
-
-    Identifier(String),
-    Literal(Literal),
-    Keyword(Keyword),
-
-    // EOF
-    EOF,
 }
 
 #[derive(Debug, Clone, PartialEq)]

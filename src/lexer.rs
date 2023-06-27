@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use crate::token::get_keyword;
 use crate::token::Literal;
+use crate::token::Operator;
 use crate::token::Token;
 use crate::token::TokenPos;
 
@@ -74,19 +75,19 @@ impl Lexer<'_> {
                 '}' => Token::RightBrace,
                 ';' => Token::Semicolon,
                 ',' => Token::Comma,
-                '.' => Token::Dot,
-                '-' => Token::Minus,
-                '+' => Token::Plus,
-                '*' => Token::Star,
+                '.' => Token::Operator(Operator::Dot),
+                '-' => Token::Operator(Operator::Minus),
+                '+' => Token::Operator(Operator::Plus),
+                '*' => Token::Operator(Operator::Star),
                 // two character tokens
-                '!' if self.advance_if(|c| c == &'=') => Token::BangEqual,
-                '!' => Token::Bang,
-                '=' if self.advance_if(|c| c == &'=') => Token::EqualEqual,
-                '=' => Token::Equal,
-                '<' if self.advance_if(|c| c == &'=') => Token::LessEqual,
-                '<' => Token::Less,
-                '>' if self.advance_if(|c| c == &'=') => Token::Greater,
-                '>' => Token::Greater,
+                '!' if self.advance_if(|c| c == &'=') => Token::Operator(Operator::BangEqual),
+                '!' => Token::Operator(Operator::Bang),
+                '=' if self.advance_if(|c| c == &'=') => Token::Operator(Operator::EqualEqual),
+                '=' => Token::Operator(Operator::Equal),
+                '<' if self.advance_if(|c| c == &'=') => Token::Operator(Operator::LessEqual),
+                '<' => Token::Operator(Operator::Less),
+                '>' if self.advance_if(|c| c == &'=') => Token::Operator(Operator::GreaterEqual),
+                '>' => Token::Operator(Operator::Greater),
                 ' ' | '\r' | '\t' => return self.next_token(),
                 '\n' => {
                     self.line_number += 1;
@@ -245,6 +246,7 @@ mod test {
     use super::*;
     use crate::token::Keyword;
     use crate::token::Literal;
+    use crate::token::Operator;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -264,7 +266,7 @@ mod test {
                     offset: 20
                 }),
                 Ok(TokenPos {
-                    token: Token::Equal,
+                    token: Token::Operator(Operator::Equal),
                     offset: 22
                 }),
                 Ok(TokenPos {
@@ -359,7 +361,7 @@ mod test {
                     offset: 59
                 }),
                 Ok(TokenPos {
-                    token: Token::Equal,
+                    token: Token::Operator(Operator::Equal),
                     offset: 61
                 }),
                 Ok(TokenPos {
@@ -395,7 +397,7 @@ mod test {
                     offset: 4
                 }),
                 Ok(TokenPos {
-                    token: Token::Equal,
+                    token: Token::Operator(Operator::Equal),
                     offset: 6
                 }),
                 Ok(TokenPos {
@@ -434,7 +436,7 @@ mod test {
                     offset: 4
                 }),
                 Ok(TokenPos {
-                    token: Token::Equal,
+                    token: Token::Operator(Operator::Equal),
                     offset: 16
                 }),
                 Ok(TokenPos {
@@ -442,7 +444,7 @@ mod test {
                     offset: 18
                 }),
                 Ok(TokenPos {
-                    token: Token::Plus,
+                    token: Token::Operator(Operator::Plus),
                     offset: 22
                 }),
                 Ok(TokenPos {
@@ -450,7 +452,7 @@ mod test {
                     offset: 24
                 }),
                 Ok(TokenPos {
-                    token: Token::Dot,
+                    token: Token::Operator(Operator::Dot),
                     offset: 27
                 }),
                 Ok(TokenPos {
