@@ -183,11 +183,6 @@ impl Lexer<'_> {
     }
 
     fn read_string_literal(&mut self, pos: usize) -> LexerResult<String> {
-        let mut ret = Err(LexerError {
-            line_number: self.line_number,
-            error: Error::MalformedString,
-        });
-
         // clippy recommends using a for loop instead, but that would move
         // the iterator which is not allowed behind a mutable reference
         #[allow(clippy::while_let_on_iterator)]
@@ -196,12 +191,14 @@ impl Lexer<'_> {
                 self.line_number += 1;
             }
             if c == '"' {
-                ret = Ok(self.code[pos + 1..end_pos].to_string());
-                break;
+                return Ok(self.code[pos + 1..end_pos].to_string());
             }
         }
 
-        ret
+        Err(LexerError {
+            line_number: self.line_number,
+            error: Error::MalformedString,
+        })
     }
 
     fn advance_if<P: Fn(&char) -> bool>(&mut self, predicate: P) -> bool {
